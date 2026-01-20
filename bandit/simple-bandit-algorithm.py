@@ -13,42 +13,40 @@
 
 import numpy as np
 
-# k=5 bandits
-Q = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
-N = np.array([0, 0, 0, 0, 0])
+K_BANDITS = 10
+EPSILON = 0.1
+STEPS = 10_000
 
-epsilon = 0.1
+# k=5 bandits
+Q = np.zeros(K_BANDITS)
+N = np.zeros(K_BANDITS, dtype=np.uint64)
 
 # Bandit distributions initialization
-means = np.array([0, 1, -1, 0.5, -0.5])
-sd = 0.1
+means = np.array(np.random.normal(loc=0, scale=5, size=10))
+sd = 0.5
+
 
 # Bandit function: 1..5 -> R
-def bandit(action: int) -> float:
-    return np.random.normal(loc=means[action-1], scale=sd, size=None)
+def bandit(action_idx: int) -> float:
+    return np.random.normal(loc=means[action_idx], scale=sd, size=None)
 
-def get_action(epsilon: float) -> int:
-    if np.random.random() < epsilon:
-        return np.argmax(Q, keepdims=True) + 1
+
+def get_action_idx() -> int:
+    if np.random.random() > EPSILON:
+        return np.argmax(Q, keepdims=True)
     else:
-        return np.random.randint(1,5 + 1)
+        return np.random.randint(0, K_BANDITS)
+
 
 def main():
-    # print(f"Means: {means}, sd: {sd}")
-    #
-    # for _ in range(10):
-    #     action = randint(1,5)
-    #     b = bandit(action)
-    #     print(f"For action {action} the bandit resulted in: {b}")
-
-    steps = 1000
-    for _ in range(steps):
-        action = get_action(epsilon)
-        v = bandit(action)
-        N[action-1] += 1
-        Q[action-1] += (1.0 / (N[action-1])) * (v - Q[action-1])
+    for _ in range(STEPS):
+        action_idx = get_action_idx()
+        v = bandit(action_idx)
+        N[action_idx] += 1
+        Q[action_idx] += (1.0 / (N[action_idx])) * (v - Q[action_idx])
 
     print(f"Distribution means: {means}")
     print(f"Final values of Q: {Q}")
+
 
 main()
