@@ -15,13 +15,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 from numpy.typing import NDArray
 
-K_BANDITS = 10
+K_BANDITS = 100
 STEPS = 1000
 SIMULATIONS = 2000
 
-def generate_bandits(k: int = 10):
+def generate_bandits(k: int = K_BANDITS):
     return [(np.random.normal(loc=0, scale=1, size=None), 1) for _ in range(k)]
-
 
 def calc_bandit(bandits: list[tuple[float, int]], bandit_idx: int):
     mean, sd = bandits[bandit_idx]
@@ -38,43 +37,54 @@ def execute_simulation(bandits: list[tuple[float, int]], epsilon: float):
     N = np.zeros(K_BANDITS, dtype=np.uint64)
 
     rewards = np.empty(STEPS)
+    optimal_decisions = np.zeros(STEPS)
 
     for step in range(STEPS):
-        bandit_idx = select_bandit(Q, epsilon)
+        bandit_idx = select_bandit(Q, epsilon * (0.995) ** step) # decay rate
         v = calc_bandit(bandits, bandit_idx)
 
         N[bandit_idx] += 1
         Q[bandit_idx] += (1.0 / (N[bandit_idx])) * (v - Q[bandit_idx])
 
         rewards[step] = v
+        if bandit_idx == int(np.argmax(Q)):
+            optimal_decisions[step] = 1
 
-    return rewards
+    return rewards, optimal_decisions
 
 def execute_experiment(epsilon: float):
     accum_rewards = np.zeros(STEPS)
+    accum_optimal_decisions = np.zeros(STEPS)
 
     for simulation in range(SIMULATIONS):
         if simulation % 100 == 0:
             print(f"Simulation {simulation} of {SIMULATIONS}")
 
-        bandits = generate_bandits()
-        rewards = execute_simulation(bandits, epsilon)
+        bandits = generate_bandits(K_BANDITS)
+        rewards, optimal_decisions = execute_simulation(bandits, epsilon)
         accum_rewards += rewards
+        accum_optimal_decisions += optimal_decisions
 
-    return accum_rewards / SIMULATIONS
+    return (accum_rewards / SIMULATIONS, accum_optimal_decisions / SIMULATIONS)
 
 def main():
     result_1 = execute_experiment(0.1)
     result_2 = execute_experiment(0.01)
-    result_3 = execute_experiment(0.001)
 
     _, ax = plt.subplots()
-    ax.plot(np.arange(STEPS), result_1, label="epsilon=0.1")
-    ax.plot(np.arange(STEPS), result_2, label="epsilon=0.01")
-    ax.plot(np.arange(STEPS), result_3, label="epsilon=0.001")
+    ax.plot(np.arange(STEPS), result_1[0], label="epsilon=0.1")
+    ax.plot(np.arange(STEPS), result_2[0], label="epsilon=0.01")
     ax.set_xlabel("steps")
     ax.set_ylabel("avg rewards")
     ax.legend()
-    plt.savefig("results")
+    plt.savefig("results_avg_rewards")
+
+    _, ax = plt.subplots()
+    ax.plot(np.arange(STEPS), result_1[1], label="epsilon=0.1")
+    ax.plot(np.arange(STEPS), result_2[1], label="epsilon=0.01")
+    ax.set_xlabel("steps")
+    ax.set_ylabel("% optimal decision")
+    ax.legend()
+    plt.savefig("results_optimal_decisions")
 
 main()
