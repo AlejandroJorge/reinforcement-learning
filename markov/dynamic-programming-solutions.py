@@ -1,3 +1,4 @@
+import math
 import random
 from typing import Literal, final
 
@@ -15,13 +16,11 @@ class GridWorldMDP:
         transition_matrix: dict[state, dict[action, dict[state, float]]],
         reward_matrix: dict[state, float],
         terminal_states: set[state],
-        initial_state: state,
         gamma: float,
     ) -> None:
         self.transition_matrix = transition_matrix
         self.reward_matrix = reward_matrix
         self.terminal_states = terminal_states
-        self.initial_state = initial_state
         self.gamma = gamma
 
     def get_reward(self, s: state) -> float:
@@ -78,10 +77,9 @@ def generate_mdp_params(grid_size: int):
     reward_matrix[(grid_size, grid_size)] = 0
 
     terminal_states = set([(1, 1), (grid_size, grid_size)])
-    initial_state = (grid_size // 2, grid_size // 2)
     gamma = 0.9
 
-    return transition_matrix, reward_matrix, terminal_states, initial_state, gamma
+    return transition_matrix, reward_matrix, terminal_states, gamma
 
 
 policy = dict[state, action]
@@ -174,9 +172,43 @@ def iterative_policy_evaluation(mdp: GridWorldMDP, pi: policy, theta: float = 0.
     return values
 
 
+# From Sutton & Barto p80 (2018)
+def policy_iteration(mdp: GridWorldMDP) -> policy:
+    pi = generate_policy(mdp)
+    values: dict[state, float] = {}
+
+    while True:
+        values = iterative_policy_evaluation(mdp, pi)
+
+        policy_stable = True
+        for state in mdp.get_non_terminal_states():
+            old_action = pi[state]
+
+            # Adapted
+            max_q = -math.inf
+            actions: list[action] = ["up", "down", "right", "left"]
+            for a in actions:
+                curr_q = sum(
+                    mdp.get_p(state, a, s_)
+                    * (mdp.get_reward(s_) + mdp.gamma * values[s_])
+                    for s_ in mdp.get_states()
+                )
+                if curr_q > max_q:
+                    pi[state] = a
+                    max_q = curr_q
+
+            if old_action != pi[state]:
+                policy_stable = False
+
+        if policy_stable:
+            break
+
+    return pi
+
+
 def main():
-    t, r, terminal, initial, gamma = generate_mdp_params(4)
-    mdp = GridWorldMDP(t, r, terminal, initial, gamma)
+    t, r, terminal, gamma = generate_mdp_params(8)
+    mdp = GridWorldMDP(t, r, terminal, gamma)
 
     print("We have the following rewards for the MDP:")
     print_rewards(mdp)
@@ -192,5 +224,16 @@ def main():
     print("Values of corresponding policy:")
     print_values(values)
 
+    print("Optimizing policy through policy_iteration")
+    pi = policy_iteration(mdp)
+
+    print("Evaluating policy through iterative_policy_evaluation")
+    values = iterative_policy_evaluation(mdp, pi)
+
+    print("Optimized policy:")
+    print_policy(pi)
+
+    print("Values of optimized policy:")
+    print_values(values)
 
 main()
