@@ -108,7 +108,7 @@ def get_optimal_policy_from_val(mdp: GridWorldMDP, values: dict[state, float]):
         actions: list[action] = ["up", "down", "right", "left"]
         for a in actions:
             curr_q = sum(
-                mdp.get_p(s, a, s_) * (mdp.get_reward(s_) + mdp.gamma * values[s_])
+                mdp.get_p(s, a, s_) * (mdp.get_reward(s) + mdp.gamma * values[s_])
                 for s_ in mdp.get_states()
             )
             if curr_q > max_q:
@@ -180,7 +180,7 @@ def iterative_policy_evaluation(mdp: GridWorldMDP, pi: policy, theta: float = 0.
             # Adapted for a deterministic policy
             values[state] = sum(
                 mdp.get_p(state, pi[state], s_)
-                * (mdp.get_reward(s_) + mdp.gamma * values[s_])
+                * (mdp.get_reward(state) + mdp.gamma * values[s_])
                 for s_ in mdp.get_states()
             )
 
@@ -210,7 +210,7 @@ def policy_iteration(mdp: GridWorldMDP) -> policy:
             for a in actions:
                 curr_q = sum(
                     mdp.get_p(state, a, s_)
-                    * (mdp.get_reward(s_) + mdp.gamma * values[s_])
+                    * (mdp.get_reward(state) + mdp.gamma * values[s_])
                     for s_ in mdp.get_states()
                 )
                 if curr_q > max_q:
@@ -244,7 +244,7 @@ def value_iteration(mdp: GridWorldMDP, theta: float = 0.1) -> dict[state, float]
             values[state] = max(
                 sum(
                     mdp.get_p(state, a, s_)
-                    * (mdp.get_reward(s_) + mdp.gamma * values[s_])
+                    * (mdp.get_reward(state) + mdp.gamma * values[s_])
                     for s_ in mdp.get_states()
                 )
                 for a in actions
