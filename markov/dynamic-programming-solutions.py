@@ -101,6 +101,26 @@ def generate_policy(mdp: GridWorldMDP) -> policy:
     return pi
 
 
+def get_optimal_policy_from_val(mdp: GridWorldMDP, values: dict[state, float]):
+    pi: policy = {}
+    for s in mdp.get_states():
+        max_q = -math.inf
+        actions: list[action] = ["up", "down", "right", "left"]
+        for a in actions:
+            curr_q = sum(
+                mdp.get_p(s, a, s_) * (mdp.get_reward(s_) + mdp.gamma * values[s_])
+                for s_ in mdp.get_states()
+            )
+            if curr_q > max_q:
+                max_q = curr_q
+                pi[s] = a
+
+    for s in mdp.get_terminal_states():
+        pi[s] = "up"  # doesn't matter
+
+    return pi
+
+
 def print_policy(pi: policy):
     policy_grid: dict[int, dict[int, str]] = {}
 
@@ -206,6 +226,38 @@ def policy_iteration(mdp: GridWorldMDP) -> policy:
     return pi
 
 
+# From Sutton & Barto p83 (2018)
+def value_iteration(mdp: GridWorldMDP, theta: float = 0.1) -> dict[state, float]:
+    values: dict[state, float] = {}
+    for state in mdp.get_terminal_states():
+        values[state] = 0
+    for state in mdp.get_non_terminal_states():
+        values[state] = random.random() * 10
+
+    while True:
+        delta = 0.0
+
+        for state in mdp.get_non_terminal_states():
+            v = values[state]
+
+            actions: list[action] = ["up", "down", "left", "right"]
+            values[state] = max(
+                sum(
+                    mdp.get_p(state, a, s_)
+                    * (mdp.get_reward(s_) + mdp.gamma * values[s_])
+                    for s_ in mdp.get_states()
+                )
+                for a in actions
+            )
+
+            delta = max(delta, abs(v - values[state]))
+
+        if delta < theta:
+            break
+
+    return values
+
+
 def main():
     t, r, terminal, gamma = generate_mdp_params(8)
     mdp = GridWorldMDP(t, r, terminal, gamma)
@@ -224,6 +276,8 @@ def main():
     print("Values of corresponding policy:")
     print_values(values)
 
+    print("---------------------------------------------------------")
+
     print("Optimizing policy through policy_iteration")
     pi = policy_iteration(mdp)
 
@@ -235,5 +289,20 @@ def main():
 
     print("Values of optimized policy:")
     print_values(values)
+
+    print("---------------------------------------------------------")
+
+    print("Optimizing values through value_iteration")
+    values = value_iteration(mdp)
+
+    print("Values of optimized policy:")
+    print_values(values)
+
+    print("Calculating policy on optimized values")
+    pi = get_optimal_policy_from_val(mdp, values)
+
+    print("Optimized policy:")
+    print_policy(pi)
+
 
 main()
